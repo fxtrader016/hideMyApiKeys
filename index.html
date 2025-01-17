@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Palette Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .input-section {
+            margin-bottom: 20px;
+        }
+        .input-section label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .input-section input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .output {
+            margin-top: 20px;
+            white-space: pre-wrap;
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            font-family: monospace;
+        }
+        #tempTextArea {
+            position: absolute;
+            left: -9999px;
+            top: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Color Palette Generator</h1>
+        
+        <div class="input-section">
+            <label for="numApis">Number of Palettes:</label>
+            <input type="number" id="numApis" min="1" max="10" value="1">
+            
+            <div id="apiInputs"></div>
+            
+            <button onclick="generateDisguise()">Generate Palette</button>
+            <button onclick="copyOutput()">Copy Output</button>
+        </div>
+        
+        <div class="output" id="output"></div>
+        <textarea id="tempTextArea"></textarea>
+    </div>
+
+    <script>
+        // Common color names for random entries
+        const colorNames = [
+            'primary', 'secondary', 'accent', 'highlight', 'background',
+            'text', 'border', 'shadow', 'hover', 'active', 'link',
+            'warning', 'error', 'success', 'info', 'muted', 'bright',
+            'dark', 'light', 'neutral', 'vibrant', 'soft', 'bold'
+        ];
+
+        // Generate random hex color
+        function getRandomColor() {
+            return Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+        }
+
+        function generateRandomKey() {
+            const name = colorNames[Math.floor(Math.random() * colorNames.length)];
+            const variant = Math.floor(Math.random() * 500 + 100);
+            return `${name}-${variant}`;
+        }
+
+        // Generate sequential 3-digit number starting from a base
+        function getSequentialDigits(base, index) {
+            return (base + index).toString().padStart(3, '0');
+        }
+
+        document.getElementById('numApis').addEventListener('change', function() {
+            const container = document.getElementById('apiInputs');
+            const count = parseInt(this.value);
+            container.innerHTML = '';
+            
+            for(let i = 1; i <= count; i++) {
+                container.innerHTML += `
+                    <label for="api${i}">Palette ${i}:</label>
+                    <input type="text" id="api${i}" placeholder="Enter color code ${i}">
+                `;
+            }
+        });
+
+        document.getElementById('numApis').dispatchEvent(new Event('change'));
+
+        function generateDisguise() {
+            const numApis = parseInt(document.getElementById('numApis').value);
+            let colorObject = {};
+            
+            // Add random decoy entries first
+            for(let i = 0; i < 10; i++) {
+                colorObject[generateRandomKey()] = '#' + getRandomColor();
+            }
+            
+            // Process each API key
+            for(let i = 1; i <= numApis; i++) {
+                const apiKey = document.getElementById(`api${i}`).value;
+                if(!apiKey) continue;
+                
+                // Split API key into chunks
+                const chunks = [];
+                for(let j = 0; j < apiKey.length; j += 6) {
+                    chunks.push(apiKey.slice(j, j + 6));
+                }
+                
+                // Generate base number for this API key (100, 200, 300, etc.)
+                const baseNumber = i * 100;
+                
+                // Add chunks as color values with sequential keys
+                chunks.forEach((chunk, index) => {
+                    const sequentialDigits = getSequentialDigits(baseNumber, index);
+                    const key = `color-${i}-${sequentialDigits}`;
+                    colorObject[key] = '#' + chunk;
+                    
+                    // Add more random entries after each chunk
+                    for(let k = 0; k < 2; k++) {
+                        colorObject[generateRandomKey()] = '#' + getRandomColor();
+                    }
+                });
+            }
+            
+            // Convert to formatted string
+            const output = 'const colorPalette = ' + JSON.stringify(colorObject, null, 2) + ';';
+            document.getElementById('output').textContent = output;
+        }
+
+        function copyOutput() {
+            const output = document.getElementById('output').textContent;
+            const tempTextArea = document.getElementById('tempTextArea');
+            
+            // Set the value of the textarea to our output
+            tempTextArea.value = output;
+            
+            try {
+                // First try the modern Clipboard API
+                navigator.clipboard.writeText(output).then(() => {
+                    alert('Output copied to clipboard!');
+                }).catch(() => {
+                    // If Clipboard API fails, use the fallback method
+                    fallbackCopy(tempTextArea);
+                });
+            } catch (err) {
+                // If Clipboard API is not available, use the fallback method
+                fallbackCopy(tempTextArea);
+            }
+        }
+
+        function fallbackCopy(textArea) {
+            // Make the textarea visible and select its content
+            textArea.style.display = 'block';
+            textArea.select();
+            
+            try {
+                // Execute the copy command
+                document.execCommand('copy');
+                alert('Output copied to clipboard!');
+            } catch (err) {
+                alert('Failed to copy. Please select the text manually and copy using Ctrl+C / Cmd+C');
+            } finally {
+                // Hide the textarea again
+                textArea.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
